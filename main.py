@@ -9,11 +9,18 @@ from datetime import datetime, timedelta
 from polygon import RESTClient
 import os
 import pytz
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 # Global variables
-API_KEY = "ZYI08VUZ9mRKvn3fQjRAxV3v7OnAgtqf"
-CSV_FILE = "transactions.csv"
+API_KEY = os.environ.get("API_KEY")
 
+if API_KEY is None:
+    raise ValueError("API_KEY environment variable is not set")
+
+CSV_FILE = "transactions.csv"
 
 class StockPortfolioApp:
     def __init__(self, master):
