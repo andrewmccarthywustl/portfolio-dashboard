@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 
+
 def load_transactions(csv_file):
     if os.path.exists(csv_file):
         try:
@@ -10,6 +11,10 @@ def load_transactions(csv_file):
             print(f"Error loading transactions: {str(e)}")
     return []
 
+
 def save_transactions_to_csv(csv_file, data):
-    df = pd.DataFrame(data, columns=["Date", "Symbol", "Quantity", "Buy Price", "Current Price", "Last Updated", "Sector"])
+    columns = ["Date", "Symbol", "Quantity", "Buy Price", "Current Price", "Last Updated",
+               "Sector", "Industry", "Beta"]
+
+    df = pd.DataFrame(data, columns=columns)
     df.to_csv(csv_file, index=False)

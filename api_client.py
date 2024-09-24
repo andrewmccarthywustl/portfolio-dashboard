@@ -29,16 +29,18 @@ def fetch_stock_data(symbol, last_updated):
         return None, last_updated
 
 
-def get_stock_sector(symbol):
+def get_stock_info(symbol):
     url = f'https://financialmodelingprep.com/api/v3/profile/{symbol}?apikey={FMP_API_KEY}'
     try:
         response = requests.get(url)
         if response.status_code == 200:
-            data = response.json()
-            if data:
-                return data[0].get('sector', 'Unknown')
-        print(f"Error fetching sector for {symbol}: HTTP {response.status_code}")
-        return 'Unknown'
+            data = response.json()[0]
+            sector = data.get('sector', 'Unknown')
+            industry = data.get('industry', 'Unknown')
+            beta = float(data.get('beta', 'nan'))
+            return sector, industry, beta
+        print(f"Error fetching info for {symbol}: HTTP {response.status_code}")
+        return 'Unknown', 'Unknown', float('nan')
     except Exception as e:
-        print(f"Error fetching sector for {symbol}: {str(e)}")
-        return 'Unknown'
+        print(f"Error fetching info for {symbol}: {str(e)}")
+        return 'Unknown', 'Unknown', float('nan')
