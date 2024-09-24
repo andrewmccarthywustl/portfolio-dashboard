@@ -1,7 +1,11 @@
-from polygon import RESTClient
-from datetime import datetime, timedelta
+import finnhub
+from datetime import datetime
 import pytz
-from config import API_KEY
+import requests
+from config import FINNHUB_API_KEY, FMP_API_KEY
+
+finnhub_client = finnhub.Client(api_key=FINNHUB_API_KEY)
+
 
 def fetch_stock_data(symbol, last_updated):
     ny_tz = pytz.timezone('America/New_York')
@@ -11,18 +15,10 @@ def fetch_stock_data(symbol, last_updated):
         return None, last_updated
 
     try:
-        client = RESTClient(API_KEY)
-        end_date = datetime.now(ny_tz).date() - timedelta(days=1)
-        start_date = end_date - timedelta(days=5)
+        quote = finnhub_client.quote(symbol)
+        price = quote['c']  # Current price
 
-        resp = client.get_aggs(ticker=symbol,
-                               multiplier=1,
-                               timespan="day",
-                               from_=start_date.strftime('%Y-%m-%d'),
-                               to=end_date.strftime('%Y-%m-%d'))
-
-        if resp and len(resp) > 0:
-            price = resp[-1].close
+        if price:
             print(f"Debug: Fetched data for {symbol}: price={price}, date={today}")
             return price, today
         else:
@@ -31,3 +27,18 @@ def fetch_stock_data(symbol, last_updated):
     except Exception as e:
         print(f"Error fetching data for {symbol}: {e}")
         return None, last_updated
+
+
+def get_stock_sector(symbol):
+    url = f'https://financialmodelingprep.com/api/v3/profile/{symbol}?apikey={FMP_API_KEY}'
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            if data:
+                return data[0].get('sector', 'Unknown')
+        print(f"Error fetching sector for {symbol}: HTTP {response.status_code}")
+        return 'Unknown'
+    except Exception as e:
+        print(f"Error fetching sector for {symbol}: {str(e)}")
+        return 'Unknown'

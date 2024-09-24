@@ -7,7 +7,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import squarify
 from datetime import datetime
 import os
-from api_client import fetch_stock_data
+from api_client import fetch_stock_data, get_stock_sector
 from config import CSV_FILE
 from utils import load_transactions, save_transactions_to_csv
 
@@ -32,11 +32,11 @@ class StockPortfolioApp:
         self.right_frame = ttk.Frame(main_frame)
         self.right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
-        columns = ("Date", "Symbol", "Quantity", "Buy Price", "Current Price", "Last Updated")
+        columns = ("Date", "Symbol", "Quantity", "Buy Price", "Current Price", "Last Updated", "Sector")
         self.tree = ttk.Treeview(self.left_frame, columns=columns, show="headings", height=15)
         for col in columns:
             self.tree.heading(col, text=col)
-            self.tree.column(col, width=65)  # Adjusted width to fit in the narrower left frame
+            self.tree.column(col, width=65)  # You might want to adjust widths
 
         self.tree.pack(fill=tk.BOTH, expand=True)
 
@@ -56,6 +56,11 @@ class StockPortfolioApp:
     def load_transactions(self):
         transactions = load_transactions(CSV_FILE)
         for transaction in transactions:
+            # If the loaded transaction doesn't have a sector (for backward compatibility),
+            # fetch it now and append it to the transaction data
+            if len(transaction) == 6:
+                sector = get_stock_sector(transaction[1])  # transaction[1] is the symbol
+                transaction.append(sector)
             self.tree.insert("", "end", values=transaction)
 
     def add_transaction(self):
@@ -83,13 +88,14 @@ class StockPortfolioApp:
             return
 
         last_updated = ""
+        sector = get_stock_sector(symbol.upper())
 
         item = self.tree.insert("", "end",
                                 values=(
-                                date, symbol.upper(), f"{quantity:.4f}", f"{price:.2f}", f"{price:.2f}", last_updated))
+                                date, symbol.upper(), f"{quantity:.4f}", f"{price:.2f}", f"{price:.2f}", last_updated, sector))
 
-        df = pd.DataFrame([[date, symbol.upper(), quantity, price, price, last_updated]],
-                          columns=["Date", "Symbol", "Quantity", "Buy Price", "Current Price", "Last Updated"])
+        df = pd.DataFrame([[date, symbol.upper(), quantity, price, price, last_updated, sector]],
+                          columns=["Date", "Symbol", "Quantity", "Buy Price", "Current Price", "Last Updated", "Sector"])
         df.to_csv(CSV_FILE, mode='a', header=not os.path.exists(CSV_FILE), index=False)
 
         self.update_single_entry(item)
@@ -97,28 +103,28 @@ class StockPortfolioApp:
 
     def update_single_entry(self, item):
         values = self.tree.item(item)["values"]
-        date, symbol, quantity, buy_price, current_price, last_updated = values
+        date, symbol, quantity, buy_price, current_price, last_updated, sector = values
         quantity = float(quantity)
         buy_price = float(buy_price)
 
         new_price, new_last_updated = fetch_stock_data(symbol, last_updated)
         if new_price is not None:
             self.tree.item(item, values=(
-            date, symbol, f"{quantity:.4f}", f"{buy_price:.2f}", f"{new_price:.2f}", new_last_updated))
+            date, symbol, f"{quantity:.4f}", f"{buy_price:.2f}", f"{new_price:.2f}", new_last_updated, sector))
             self.save_transactions_to_csv()
 
     def update_data(self):
         portfolio = {}
         for item in self.tree.get_children():
             values = self.tree.item(item)["values"]
-            date, symbol, quantity, buy_price, current_price, last_updated = values
+            date, symbol, quantity, buy_price, current_price, last_updated, sector = values
             quantity = float(quantity)
             buy_price = float(buy_price)
             current_price = float(current_price)
 
             if symbol not in portfolio:
                 portfolio[symbol] = {'quantity': 0, 'value': 0, 'buy_price': 0, 'current_price': 0, 'date': date,
-                                     'last_updated': last_updated}
+                                     'last_updated': last_updated, 'sector': sector}
 
             portfolio[symbol]['quantity'] += quantity
             portfolio[symbol]['value'] += quantity * buy_price
@@ -131,7 +137,7 @@ class StockPortfolioApp:
                     portfolio[symbol]['current_price'] = new_price
                     portfolio[symbol]['last_updated'] = new_last_updated
                     self.tree.item(item, values=(
-                    date, symbol, f"{quantity:.4f}", f"{buy_price:.2f}", f"{new_price:.2f}", new_last_updated))
+                    date, symbol, f"{quantity:.4f}", f"{buy_price:.2f}", f"{new_price:.2f}", new_last_updated, sector))
                 else:
                     portfolio[symbol]['current_price'] = current_price
 
@@ -161,7 +167,8 @@ class StockPortfolioApp:
             f"{symbol}\nValue: ${data['quantity'] * data['current_price']:.2f}\n"
             f"Change: {data['pct_change']:.2f}%\n"
             f"Buy: ${data['buy_price']:.2f} ({data['date']})\n"
-            f"Current: ${data['current_price']:.2f}"
+            f"Current: ${data['current_price']:.2f}\n"
+            f"Sector: {data['sector']}"
             for symbol, data in portfolio.items()
         ]
 

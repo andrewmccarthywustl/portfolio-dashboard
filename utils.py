@@ -11,5 +11,5 @@ def load_transactions(csv_file):
     return []
 
 def save_transactions_to_csv(csv_file, data):
-    df = pd.DataFrame(data, columns=["Date", "Symbol", "Quantity", "Buy Price", "Current Price", "Last Updated"])
+    df = pd.DataFrame(data, columns=["Date", "Symbol", "Quantity", "Buy Price", "Current Price", "Last Updated", "Sector"])
     df.to_csv(csv_file, index=False)
